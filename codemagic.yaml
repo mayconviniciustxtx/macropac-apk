@@ -16,29 +16,19 @@ workflows:
         script: |
           python3 - <<'PY'
           from pathlib import Path
-
           manifest = Path("android/app/src/main/AndroidManifest.xml")
-
-          if not manifest.exists():
-              raise Exception("AndroidManifest.xml não encontrado")
-
           texto = manifest.read_text(encoding="utf-8")
-
           permissoes = [
               '    <uses-permission android:name="android.permission.INTERNET"/>',
               '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
               '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
               '    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>',
-              '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>',
               '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
           ]
-
           bloco = "\n".join([p for p in permissoes if p not in texto])
-
           if bloco:
               pos = texto.find(">")
               texto = texto[:pos + 1] + "\n" + bloco + texto[pos + 1:]
-
           manifest.write_text(texto, encoding="utf-8")
           PY
 
