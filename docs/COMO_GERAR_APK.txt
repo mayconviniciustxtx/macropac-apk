@@ -1,0 +1,27 @@
+MACROPAC RASTREAMENTO - COMO GERAR APK
+
+1. Instalar Flutter no computador.
+2. Abrir terminal dentro da pasta flutter_app.
+3. Rodar:
+
+flutter pub get
+flutter build apk --release
+
+4. APK gerado em:
+
+build/app/outputs/flutter-apk/app-release.apk
+
+URL API configurada:
+https://mega4tech.com.br/macropac_rastreamento/api/
+
+Intervalo de envio:
+30 segundos
+
+Login teste:
+motorista.teste
+Senha:
+123456
+
+OBSERVACAO:
+Esta V1 envia localização enquanto o aplicativo está aberto/ativo.
+Na próxima versão podemos evoluir para serviço em segundo plano persistente.
