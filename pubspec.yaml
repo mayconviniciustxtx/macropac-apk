@@ -1,7 +1,7 @@
 name: macropac_rastreamento
-description: Aplicativo de rastreamento Macropac com segundo plano.
+description: Macropac Rastreamento - V7 com segundo plano nativo Android.
 publish_to: "none"
-version: 1.0.5+5
+version: 1.0.7+7
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -12,14 +12,12 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.3.2
   geolocator: ^13.0.1
-  flutter_background_service: ^5.1.0
   permission_handler: ^11.3.1
   battery_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
