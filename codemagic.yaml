@@ -16,8 +16,17 @@ workflows:
         script: |
           python3 - <<'PY'
           from pathlib import Path
+
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           texto = manifest.read_text(encoding="utf-8")
+
+          # Adiciona namespace tools no manifest
+          if 'xmlns:tools=' not in texto:
+              texto = texto.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n    xmlns:tools="http://schemas.android.com/tools">'
+              )
+
           permissoes = [
               '    <uses-permission android:name="android.permission.INTERNET"/>',
               '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
@@ -29,18 +38,23 @@ workflows:
               '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
               '    <uses-permission android:name="android.permission.WAKE_LOCK"/>'
           ]
+
           for p in permissoes:
               if p not in texto:
                   pos = texto.find(">")
                   texto = texto[:pos + 1] + "\n" + p + texto[pos + 1:]
+
           service_tag = '''        <service
                       android:name="id.flutter.flutter_background_service.BackgroundService"
                       android:enabled="true"
-                      android:exported="false"
-                      android:foregroundServiceType="location" />
+                      android:exported="true"
+                      android:foregroundServiceType="location"
+                      tools:replace="android:exported" />
           '''
+
           if "id.flutter.flutter_background_service.BackgroundService" not in texto:
               texto = texto.replace("</application>", service_tag + "\n    </application>")
+
           manifest.write_text(texto, encoding="utf-8")
           PY
 
