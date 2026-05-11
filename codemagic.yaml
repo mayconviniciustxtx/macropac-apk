@@ -12,11 +12,6 @@ workflows:
           rm -rf android
           flutter create --platforms=android --project-name macropac_rastreamento .
 
-      - name: Ajustar permissões Android
-        script: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<manifest/a\    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' $MANIFEST
-
       - name: Baixar dependências
         script: |
           flutter pub get
