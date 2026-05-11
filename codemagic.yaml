@@ -12,26 +12,44 @@ workflows:
           rm -rf android
           flutter create --platforms=android --project-name macropac_rastreamento .
 
-      - name: Adicionar permissões Android
+      - name: Ajustar Android Manifest e Gradle
         script: |
           python3 - <<'PY'
           from pathlib import Path
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          texto = manifest.read_text()
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
 
-          permissoes = """
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-          """
+          perms = '''
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+          '''
+          if 'android.permission.INTERNET' not in text:
+              idx = text.find('>')
+              text = text[:idx+1] + perms + text[idx+1:]
 
-          if "android.permission.INTERNET" not in texto:
-              texto = texto.replace("<manifest", "<manifest", 1)
-              idx = texto.find(">")
-              texto = texto[:idx+1] + permissoes + texto[idx+1:]
+          if 'id.flutter.flutter_background_service.BackgroundService' not in text:
+              service = '''
+                  <service
+                      android:name="id.flutter.flutter_background_service.BackgroundService"
+                      android:foregroundServiceType="location"
+                      android:exported="false" />
+              '''
+              text = text.replace('</application>', service + '\n    </application>')
 
-          manifest.write_text(texto)
+          manifest.write_text(text)
+
+          gradle = Path('android/app/build.gradle')
+          g = gradle.read_text()
+          g = g.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 23')
+          gradle.write_text(g)
           PY
 
       - name: Baixar dependências

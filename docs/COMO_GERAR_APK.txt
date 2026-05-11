@@ -1,27 +1,25 @@
-MACROPAC RASTREAMENTO - COMO GERAR APK
+MACROPAC APK V3
 
-1. Instalar Flutter no computador.
-2. Abrir terminal dentro da pasta flutter_app.
-3. Rodar:
+Mudanças:
+- Rastreamento inicia automaticamente depois do login.
+- Não existe botão de parar rastreamento para o funcionário.
+- Envia localização a cada 15 segundos.
+- Mantém serviço em segundo plano com notificação fixa no Android.
+- Adiciona botão EMERGÊNCIA / PEDIR AJUDA.
+- Botão de emergência salva registro na tabela emergencias_motorista.
 
-flutter pub get
-flutter build apk --release
+Arquivos para subir no GitHub:
+- codemagic.yaml
+- pubspec.yaml
+- lib/main.dart
+- docs/COMO_GERAR_APK.txt
 
-4. APK gerado em:
+Arquivos para subir no servidor:
+- api/app_emergencia.php -> /var/www/html/macropac_rastreamento/api/app_emergencia.php
+- sql/migracao_emergencia_v3.sql -> /var/www/html/macropac_rastreamento/sql/migracao_emergencia_v3.sql
 
-build/app/outputs/flutter-apk/app-release.apk
+Rodar no servidor:
+mysql -u root -p macropac_rastreamento < /var/www/html/macropac_rastreamento/sql/migracao_emergencia_v3.sql
 
-URL API configurada:
-https://mega4tech.com.br/macropac_rastreamento/api/
-
-Intervalo de envio:
-30 segundos
-
-Login teste:
-motorista.teste
-Senha:
-123456
-
-OBSERVACAO:
-Esta V1 envia localização enquanto o aplicativo está aberto/ativo.
-Na próxima versão podemos evoluir para serviço em segundo plano persistente.
+Codemagic:
+Start new build > workflow Macropac APK > baixar app-release.apk.

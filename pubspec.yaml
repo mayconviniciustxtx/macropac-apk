@@ -1,11 +1,10 @@
 name: macropac_rastreamento
-
-description: Aplicativo Macropac Rastreamento de Frota
+description: App de rastreamento Macropac
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.3+3
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -14,8 +13,14 @@ dependencies:
   shared_preferences: ^2.3.2
   geolocator: ^13.0.1
   battery_plus: ^6.0.3
-  device_info_plus: ^10.1.2
-  wakelock_plus: ^1.2.8
+  flutter_background_service: ^5.0.10
+  flutter_background_service_android: ^6.2.7
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
