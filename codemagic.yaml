@@ -12,6 +12,28 @@ workflows:
           rm -rf android
           flutter create --platforms=android --project-name macropac_rastreamento .
 
+      - name: Adicionar permissões Android
+        script: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          texto = manifest.read_text()
+
+          permissoes = """
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+          """
+
+          if "android.permission.INTERNET" not in texto:
+              texto = texto.replace("<manifest", "<manifest", 1)
+              idx = texto.find(">")
+              texto = texto[:idx+1] + permissoes + texto[idx+1:]
+
+          manifest.write_text(texto)
+          PY
+
       - name: Baixar dependências
         script: |
           flutter pub get
