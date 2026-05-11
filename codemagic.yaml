@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Macropac APK
+    name: Macropac APK Segundo Plano V5
     max_build_duration: 60
 
     environment:
@@ -12,7 +12,7 @@ workflows:
           rm -rf android
           flutter create --platforms=android --project-name macropac_rastreamento .
 
-      - name: Ajustar Android Manifest
+      - name: Ajustar Android Manifest para rastreamento em segundo plano
         script: |
           python3 - <<'PY'
           from pathlib import Path
@@ -23,12 +23,24 @@ workflows:
               '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
               '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
               '    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>',
-              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'
+              '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>',
+              '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>',
+              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+              '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
+              '    <uses-permission android:name="android.permission.WAKE_LOCK"/>'
           ]
-          bloco = "\n".join([p for p in permissoes if p not in texto])
-          if bloco:
-              pos = texto.find(">")
-              texto = texto[:pos + 1] + "\n" + bloco + texto[pos + 1:]
+          for p in permissoes:
+              if p not in texto:
+                  pos = texto.find(">")
+                  texto = texto[:pos + 1] + "\n" + p + texto[pos + 1:]
+          service_tag = '''        <service
+                      android:name="id.flutter.flutter_background_service.BackgroundService"
+                      android:enabled="true"
+                      android:exported="false"
+                      android:foregroundServiceType="location" />
+          '''
+          if "id.flutter.flutter_background_service.BackgroundService" not in texto:
+              texto = texto.replace("</application>", service_tag + "\n    </application>")
           manifest.write_text(texto, encoding="utf-8")
           PY
 

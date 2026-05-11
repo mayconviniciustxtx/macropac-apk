@@ -1,6 +1,30 @@
-Macropac APK V4 Estavel
+MACROPAC APK V5 - SEGUNDO PLANO
 
-Esta versão remove o serviço de segundo plano que estava causando fechamento do aplicativo.
-Ela inicia o rastreamento automaticamente ao abrir/logar, envia localização a cada 15 segundos enquanto o app estiver aberto/ativo e mantém botão de emergência.
+O que tem nessa versão:
+- Rastreamento automático depois do login.
+- Não tem botão de parar rastreamento para o motorista.
+- Serviço em segundo plano com notificação fixa do Android.
+- Envio de localização a cada 15 segundos.
+- Botão de emergência.
+- Botão Atualizar agora para teste.
+- Botão Sair apenas para teste/admin para limpar token em teste.
 
-Depois de validar sem fechar, a próxima versão pode receber o serviço em segundo plano de forma isolada.
+Arquivos para subir no GitHub:
+- codemagic.yaml
+- pubspec.yaml
+- lib/main.dart
+- docs/COMO_GERAR_APK.txt
+
+Após gerar e instalar o APK:
+1. Desinstale o APK antigo.
+2. Instale o APK novo.
+3. Faça login.
+4. Permita localização.
+5. Nas configurações do app, coloque Localização = Permitir o tempo todo.
+6. Em Bateria, coloque Sem restrição / Não otimizar.
+7. Permita notificações.
+8. Deixe GPS e internet ligados.
+
+Observação:
+No Android, rastreamento em segundo plano depende das permissões do aparelho.
+Em aparelhos Xiaomi, Samsung, Motorola etc., pode ser necessário liberar bateria sem restrição.
