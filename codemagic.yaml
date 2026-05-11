@@ -1,6 +1,6 @@
 workflows:
   android-apk:
-    name: Macropac APK V7 Segundo Plano Nativo
+    name: Macropac APK V8 Segundo Plano Completo
     max_build_duration: 60
 
     environment:
@@ -12,13 +12,25 @@ workflows:
           rm -rf android
           flutter create --platforms=android --project-name macropac_rastreamento .
 
-      - name: Ajustar permissões Android
+      - name: Copiar serviço nativo Android
+        script: |
+          mkdir -p android/app/src/main/kotlin/com/example/macropac_rastreamento
+          cp native_android/MainActivity.kt android/app/src/main/kotlin/com/example/macropac_rastreamento/MainActivity.kt
+          cp native_android/TrackingService.kt android/app/src/main/kotlin/com/example/macropac_rastreamento/TrackingService.kt
+
+      - name: Ajustar Manifest e Gradle
         script: |
           python3 - <<'PY'
           from pathlib import Path
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           texto = manifest.read_text(encoding="utf-8")
+
+          if 'xmlns:tools=' not in texto:
+              texto = texto.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n    xmlns:tools="http://schemas.android.com/tools">'
+              )
 
           permissoes = [
               '    <uses-permission android:name="android.permission.INTERNET"/>',
@@ -36,7 +48,32 @@ workflows:
                   pos = texto.find(">")
                   texto = texto[:pos + 1] + "\n" + p + texto[pos + 1:]
 
+          service = '''        <service
+                      android:name=".TrackingService"
+                      android:enabled="true"
+                      android:exported="false"
+                      android:foregroundServiceType="location" />
+          '''
+
+          if '.TrackingService' not in texto:
+              texto = texto.replace("</application>", service + "\n    </application>")
+
           manifest.write_text(texto, encoding="utf-8")
+
+          gradle = Path("android/app/build.gradle.kts")
+          if not gradle.exists():
+              gradle = Path("android/app/build.gradle")
+
+          g = gradle.read_text(encoding="utf-8")
+          dep = 'implementation("com.google.android.gms:play-services-location:21.3.0")'
+
+          if "play-services-location" not in g:
+              if "dependencies {" in g:
+                  g = g.replace("dependencies {", "dependencies {\n    " + dep, 1)
+              else:
+                  g += "\n\ndependencies {\n    " + dep + "\n}\n"
+
+          gradle.write_text(g, encoding="utf-8")
           PY
 
       - name: Baixar dependências

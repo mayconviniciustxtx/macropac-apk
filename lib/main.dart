@@ -85,13 +85,13 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         logado = true;
         motorista = prefs.getString('motorista_nome') ?? 'Motorista';
         caminhao = prefs.getString('caminhao_placa') ?? '-';
-        status = 'Rastreamento automático ativo.';
+        status = 'Sessão carregada. Iniciando rastreamento...';
         carregando = false;
       });
 
       await prepararPermissoes();
-      await iniciarRastreamentoNativo();
-      iniciarTimerTela();
+      await iniciarRastreamento();
+      iniciarTimerComAppAberto();
     } else {
       setState(() {
         carregando = false;
@@ -102,25 +102,19 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
   Future<void> prepararPermissoes() async {
     final gpsLigado = await Geolocator.isLocationServiceEnabled();
-
     if (!gpsLigado) {
-      setState(() {
-        status = 'GPS desligado. Ative a localização do celular.';
-      });
+      setState(() => status = 'GPS desligado. Ative a localização do celular.');
       await Geolocator.openLocationSettings();
       return;
     }
 
     LocationPermission permissao = await Geolocator.checkPermission();
-
     if (permissao == LocationPermission.denied) {
       permissao = await Geolocator.requestPermission();
     }
 
     if (permissao == LocationPermission.deniedForever) {
-      setState(() {
-        status = 'Permissão de localização negada. Abra as configurações do app.';
-      });
+      setState(() => status = 'Permissão de localização negada. Abra as configurações do app.');
       await Geolocator.openAppSettings();
       return;
     }
@@ -157,17 +151,19 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           )
           .timeout(const Duration(seconds: 25));
 
-      final json = jsonDecode(resp.body);
+      Map<String, dynamic> json;
+      try {
+        json = jsonDecode(resp.body);
+      } catch (_) {
+        throw Exception('Resposta inválida da API: ${resp.body}');
+      }
 
       if (json['success'] != true) {
         throw Exception(json['message']?.toString() ?? 'Login não autorizado.');
       }
 
       final token = json['token']?.toString() ?? '';
-
-      if (token.isEmpty) {
-        throw Exception('Token não retornado pela API.');
-      }
+      if (token.isEmpty) throw Exception('Token não retornado pela API.');
 
       final motNome = json['motorista'] is Map
           ? json['motorista']['nome']?.toString() ?? 'Motorista'
@@ -178,7 +174,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           : json['caminhao_placa']?.toString() ?? '-';
 
       final prefs = await SharedPreferences.getInstance();
-
       await prefs.setString('token', token);
       await prefs.setString('motorista_nome', motNome);
       await prefs.setString('caminhao_placa', camPlaca);
@@ -187,84 +182,53 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         logado = true;
         motorista = motNome;
         caminhao = camPlaca;
-        status = 'Login realizado. Iniciando rastreamento nativo...';
+        status = 'Login realizado. Iniciando segundo plano...';
       });
 
-      await iniciarRastreamentoNativo();
-      iniciarTimerTela();
+      await iniciarRastreamento();
+      iniciarTimerComAppAberto();
     } catch (e) {
-      setState(() {
-        status = 'Erro no login: $e';
-      });
+      setState(() => status = 'Erro no login: $e');
     } finally {
-      setState(() {
-        entrando = false;
-      });
+      setState(() => entrando = false);
     }
   }
 
-  Future<void> iniciarRastreamentoNativo() async {
+  Future<void> iniciarRastreamento() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
-
-      if (token.isEmpty) {
-        setState(() {
-          status = 'Token vazio. Faça login novamente.';
-        });
-        return;
-      }
+      if (token.isEmpty) return;
 
       try {
         await http
-            .post(
-              Uri.parse('$apiBase/app_iniciar_rota.php'),
-              body: {
-                'token': token,
-              },
-            )
+            .post(Uri.parse('$apiBase/app_iniciar_rota.php'), body: {'token': token})
             .timeout(const Duration(seconds: 20));
       } catch (_) {}
 
-      final r = await canalNativo.invokeMethod('startTrackingService');
+      final retorno = await canalNativo.invokeMethod('startTrackingService');
+      setState(() => status = 'Segundo plano nativo ativo: $retorno');
 
-      setState(() {
-        status = 'Segundo plano nativo ativo: $r';
-      });
-
-      await enviarTela();
+      await enviarComAppAberto();
     } catch (e) {
-      setState(() {
-        status = 'Erro ao iniciar segundo plano: $e';
-      });
+      setState(() => status = 'Erro ao iniciar segundo plano: $e');
     }
   }
 
-  void iniciarTimerTela() {
+  void iniciarTimerComAppAberto() {
     timerTela?.cancel();
-
-    timerTela = Timer.periodic(const Duration(seconds: intervaloSegundos), (_) {
-      enviarTela();
-    });
-
-    enviarTela();
+    timerTela = Timer.periodic(
+      const Duration(seconds: intervaloSegundos),
+      (_) => enviarComAppAberto(),
+    );
+    enviarComAppAberto();
   }
 
-  Future<void> enviarTela() async {
+  Future<void> enviarComAppAberto() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
-
       if (token.isEmpty) return;
-
-      final gpsLigado = await Geolocator.isLocationServiceEnabled();
-
-      if (!gpsLigado) {
-        setState(() {
-          status = 'GPS desligado.';
-        });
-        return;
-      }
 
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -272,7 +236,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       );
 
       int bat = -1;
-
       try {
         bat = await Battery().batteryLevel;
       } catch (_) {}
@@ -302,30 +265,22 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           status = 'Localização enviada. Segundo plano nativo ativo.';
         });
       } else {
-        setState(() {
-          status = 'Erro servidor: ${resp.body}';
-        });
+        setState(() => status = 'Erro servidor: ${resp.body}');
       }
     } catch (e) {
-      setState(() {
-        status = 'Aguardando GPS/internet: $e';
-      });
+      setState(() => status = 'Aguardando GPS/internet: $e');
     }
   }
 
   Future<void> emergencia() async {
-    setState(() {
-      status = 'Enviando emergência...';
-    });
+    setState(() => status = 'Enviando emergência...');
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
-
       if (token.isEmpty) throw Exception('Sem token.');
 
       Position? pos;
-
       try {
         pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
@@ -334,7 +289,6 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       } catch (_) {}
 
       int bat = -1;
-
       try {
         bat = await Battery().batteryLevel;
       } catch (_) {}
@@ -353,24 +307,17 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           .timeout(const Duration(seconds: 25));
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        setState(() {
-          status = 'Emergência enviada para a central.';
-        });
+        setState(() => status = 'Emergência enviada para a central.');
       } else {
-        setState(() {
-          status = 'Erro emergência: ${resp.body}';
-        });
+        setState(() => status = 'Erro emergência: ${resp.body}');
       }
     } catch (e) {
-      setState(() {
-        status = 'Erro ao enviar emergência: $e';
-      });
+      setState(() => status = 'Erro ao enviar emergência: $e');
     }
   }
 
   Future<void> sairTeste() async {
     final prefs = await SharedPreferences.getInstance();
-
     await prefs.clear();
 
     try {
@@ -383,6 +330,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       logado = false;
       motorista = '';
       caminhao = '';
+      ultimaAtualizacao = '-';
+      lat = '-';
+      lng = '-';
+      precisao = '-';
+      bateria = '-';
       status = 'Sessão limpa para teste.';
     });
   }
@@ -398,19 +350,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
 
   @override
   Widget build(BuildContext context) {
-    if (carregando) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
+    if (carregando) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6FB),
-      appBar: AppBar(
-        title: const Text('Macropac Rastreamento'),
-      ),
+      appBar: AppBar(title: const Text('Macropac Rastreamento')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(18),
@@ -420,12 +364,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             decoration: BoxDecoration(
               color: const Color(0xFFF9FFFC),
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 18,
-                  color: Colors.black.withOpacity(.12),
-                ),
-              ],
+              boxShadow: [BoxShadow(blurRadius: 18, color: Colors.black.withOpacity(.12))],
             ),
             child: logado ? telaLogado() : telaLogin(),
           ),
@@ -438,35 +377,20 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'MACROPAC',
-          style: TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        const Text('MACROPAC', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
         const SizedBox(height: 18),
         TextField(
           controller: loginCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Login',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Login', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: senhaCtrl,
           obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Senha',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 14),
-        FilledButton(
-          onPressed: entrando ? null : login,
-          child: Text(entrando ? 'Entrando...' : 'Entrar'),
-        ),
+        FilledButton(onPressed: entrando ? null : login, child: Text(entrando ? 'Entrando...' : 'Entrar')),
         const SizedBox(height: 14),
         Text(status),
       ],
@@ -477,13 +401,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'MACROPAC',
-          style: TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        const Text('MACROPAC', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
         const SizedBox(height: 12),
         linha('Motorista', motorista),
         linha('Caminhão', caminhao),
@@ -494,58 +412,33 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         linha('Bateria', bateria),
         const SizedBox(height: 16),
         const Text(
-          'Rastreamento automático em segundo plano nativo. Mantenha localização, notificações e bateria sem restrição.',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          'Rastreamento automático ativo. Para funcionar em segundo plano, mantenha localização, notificações e bateria sem restrição.',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: emergencia,
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFB91C1C),
-            padding: const EdgeInsets.symmetric(
-              vertical: 16,
-            ),
-          ),
+          style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB91C1C), padding: const EdgeInsets.symmetric(vertical: 16)),
           child: const Text('EMERGÊNCIA / PEDIR AJUDA'),
         ),
         const SizedBox(height: 10),
-        OutlinedButton(
-          onPressed: enviarTela,
-          child: const Text('Atualizar agora'),
-        ),
+        OutlinedButton(onPressed: enviarComAppAberto, child: const Text('Atualizar agora')),
         const SizedBox(height: 10),
         Text(status),
         const SizedBox(height: 10),
-        TextButton(
-          onPressed: sairTeste,
-          child: const Text('Sair apenas para teste/admin'),
-        ),
+        TextButton(onPressed: sairTeste, child: const Text('Sair apenas para teste/admin')),
       ],
     );
   }
 
   Widget linha(String titulo, String valor) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 150,
-            child: Text(
-              '$titulo:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(valor),
-          ),
+          SizedBox(width: 150, child: Text('$titulo:', style: const TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(child: Text(valor)),
         ],
       ),
     );
